@@ -25,9 +25,13 @@ $vs_locations = @(
     @{version='Visual Studio 17 2022';
       path='C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat'},
     @{version='Visual Studio 17 2022';
+      path='C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\Tools\VsDevCmd.bat'},
+    @{version='Visual Studio 17 2022';
       path='C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat'},
     @{version='Visual Studio 16 2019';
       path='C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat'},
+    @{version='Visual Studio 16 2019';
+      path='C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\Common7\Tools\VsDevCmd.bat'},
     @{version='Visual Studio 16 2019';
       path='C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\Tools\VsDevCmd.bat'}
 );
@@ -43,6 +47,14 @@ Foreach ($location in $vs_locations) {
     }
 }
 
+$build_env_dir = -join((Get-Location).Path, '\', 'build_env.ps1');
+
+# Allow local customizations to build environment
+if (Test-Path $build_env_dir) {
+    Write-Output "Using local build environment at $build_env_dir";
+    invoke-expression -Command $build_env_dir
+}
+
 if ($vs_version -eq '') {
     Write-Output "Could not find Visual studio version";
     break;
@@ -51,17 +63,17 @@ if ($vs_version -eq '') {
 Write-Output "Using Visual Studio version $vs_version at $vs_path";
 
 $build_type = 'Release';
-if ($env:B_BUILD_TYPE -ne $null) {
+if ($null -ne $env:B_BUILD_TYPE) {
     $build_type = $env:B_BUILD_TYPE;
 }
 $qt_major_version = '6';
-if ($env:B_QT_MAJOR_VERSION -ne $null) {
+if ($null -ne $env:B_QT_MAJOR_VERSION) {
     $qt_major_version = $env:B_QT_MAJOR_VERSION;
 }
 $qt_root = (Resolve-Path C:\Qt\$qt_major_version*\* 2>$null).Path;
-if ($env:B_QT_ROOT -ne $null) {
+if ($null -ne $env:B_QT_ROOT) {
     $qt_root = $env:B_QT_ROOT;
-} elseif ($qt_root -eq $null) {
+} elseif ($null -eq $qt_root) {
     Write-Output "Could not find Qt and B_QT_ROOT is not provided";
     break;
 }
@@ -72,7 +84,7 @@ if (Test-Path -LiteralPath build) {
     Remove-Item -LiteralPath build -Recurse;
 }
 New-Item -Force -ItemType Directory -Path .\build | Out-Null
-pushd build
+Push-Location build
 
 try {
     $env:BONJOUR_SDK_HOME="$bonjour_path"
@@ -86,5 +98,5 @@ try {
     cmake --build . --parallel --config $build_type --target install
     ISCC /Qp installer-inno\input-leap.iss
 } finally {
-    popd
+    Pop-Location
 }
